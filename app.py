@@ -1,6 +1,7 @@
 import streamlit as st
 import pickle
 import numpy as np
+import pandas as pd
 
 # Load saved model and vectorizer (you should save them beforehand)
 model = pickle.load(open('model.pkl', 'rb'))
@@ -69,9 +70,15 @@ if st.button("🔍 Analyze Job"):
         input_array = input_vec.toarray()[0]
         contributions = input_array * weights
         
-        # Get top contributing words
-        top_indices = np.argsort(contributions)[-10:][::-1]
-        top_words = [(feature_names[i], contributions[i]) for i in top_indices if contributions[i] > 0]
+        # Create feature importance DataFrame
+        feature_importance = pd.DataFrame({
+            'feature': feature_names,
+            'contribution': contributions
+        })
+        
+        # Separate fake and real indicators
+        fake_indicators = feature_importance[feature_importance['contribution'] > 0].sort_values(by='contribution', ascending=False)
+        real_indicators = feature_importance[feature_importance['contribution'] < 0].sort_values(by='contribution', ascending=True)
         
         # Result UI
         st.markdown("---")
@@ -83,11 +90,17 @@ if st.button("🔍 Analyze Job"):
         
         st.markdown("### 🔍 Top Influential Words")
         
-        if top_words:
-            for word, score in top_words[:5]:
-                st.write(f"• {word} ({score:.3f})")
-        else:
-            st.write("No strong indicators found")
+        # Show fake indicators
+        if not fake_indicators.empty:
+            st.markdown("#### 🚨 FAKE INDICATORS (pushing towards FAKE)")
+            for _, row in fake_indicators.head(5).iterrows():
+                st.write(f"• {row['feature']} ({row['contribution']:.3f})")
+        
+        # Show real indicators  
+        if not real_indicators.empty:
+            st.markdown("#### ✅ REAL INDICATORS (pushing towards REAL)")
+            for _, row in real_indicators.head(5).iterrows():
+                st.write(f"• {row['feature']} ({row['contribution']:.3f})")
 
 # Footer
 st.markdown("---")
